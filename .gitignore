@@ -8,4 +8,4 @@ runs
 hardver_check.py
 camera_feed.py
 *.xml
-*.idea*
+./.idea*
