@@ -1,0 +1,11 @@
+train*
+cropped_boxes
+dataset
+runs
+*venv*
+*.jpg
+*.pt
+hardver_check.py
+camera_feed.py
+*.xml
+*.idea*
