@@ -1,12 +1,15 @@
+from ultralytics import YOLO
 import cv2
 import yaml
-from ultralytics import YOLO
+import os
 
 with open('dataset\\data.yaml', "r") as f:
     data = yaml.safe_load(f)
     class_names = data["names"]
 
-model = YOLO('best.pt')
+model = YOLO("best.pt")
+
+model.export(format="ncnn")
 
 image_path = "test.jpg"
 image = cv2.imread(image_path)
@@ -15,9 +18,9 @@ if image is None:
     print("Error: Could not read the image.")
     exit()
 
-results = model(image)
+ncnn_model = YOLO("best_ncnn_model")
 
-import os
+results = ncnn_model(image)
 
 output_dir = "cropped_boxes"
 os.makedirs(output_dir, exist_ok=True)
@@ -41,7 +44,6 @@ for i, result in enumerate(results):
 
 resized = cv2.resize(image, (0, 0), fx=0.5, fy=0.5)
 cv2.imshow("Detected Image", resized)
-
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()
