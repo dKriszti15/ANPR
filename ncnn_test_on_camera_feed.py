@@ -4,11 +4,13 @@ import os
 import time
 from ultralytics import YOLO
 
+model_name = './best.pt'
+
 with open('./dataset/data.yaml', "r") as f:
     data = yaml.safe_load(f)
     class_names = data["names"]
 
-model = YOLO('./best.pt')
+model = YOLO(model_name)
 
 model.export(format="ncnn")
 
@@ -74,7 +76,8 @@ while True:
 
     cv2.imshow('Original', frame)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if (cv2.waitKey(1) & 0xFF == ord('q') or elapsed_time >= 30):
+        print('Model:', model_name, ' | Elapsed time: ', elapsed_time, ' | FPM: ', fpm)
         break
 
 cap.release()

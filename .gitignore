@@ -9,4 +9,5 @@ hardver_check.py
 camera_feed.py
 *.xml
 .idea*
-best_ncnn_model
+best*
+
