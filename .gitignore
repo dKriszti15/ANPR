@@ -1,6 +1,6 @@
 train*
 cropped_boxes
-dataset
+dataset*
 runs
 *venv*
 *.jpg
