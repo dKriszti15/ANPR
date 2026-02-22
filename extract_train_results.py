@@ -24,9 +24,10 @@ def extract_results(folder):
     result = {
         "Training": folder_name,
         "Model": None,
-        "Train_Images": None,
-        "Val_Images": None,
-        "Total_Images": None,
+
+        #"Train_Images": None,
+        #"Val_Images": None,
+        #"Total_Images": None,
         "Epochs": None,
         "Batch": None,
         "LR0": None,
@@ -116,7 +117,7 @@ def main():
 
     df = pd.DataFrame(all_results)
 
-    df = df.sort_values(by="mAP@0.5", ascending=False, na_position="last")
+    df = df.sort_values(by="mAP@0.5:0.95", ascending=True, na_position="last")
 
     df.to_csv(OUTPUT_FILE, index=False)
 
