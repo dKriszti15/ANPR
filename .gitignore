@@ -1,4 +1,4 @@
-train*
+train_*
 cropped_boxes
 dataset*
 runs

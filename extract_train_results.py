@@ -14,7 +14,6 @@ def get_column(df, possible_names):
     return None
 
 
-# Extract results from training folder
 def extract_results(folder):
 
     results_csv = os.path.join(folder, "results.csv")
@@ -24,10 +23,6 @@ def extract_results(folder):
     result = {
         "Training": folder_name,
         "Model": None,
-
-        #"Train_Images": None,
-        #"Val_Images": None,
-        #"Total_Images": None,
         "Epochs": None,
         "Batch": None,
         "LR0": None,
@@ -39,26 +34,21 @@ def extract_results(folder):
         "mAP@0.5:0.95": None,
     }
 
-    # Read args.yaml
     if os.path.exists(args_yaml):
         try:
             with open(args_yaml, "r") as f:
                 args = yaml.safe_load(f)
 
-            model_name = os.path.basename(str(args.get("model", "")))
-
             result.update({
-                "Model": model_name,
+                "Model": os.path.basename(str(args.get("model", ""))),
                 "Epochs": args.get("epochs"),
                 "Batch": args.get("batch"),
                 "LR0": args.get("lr0"),
-                "Cos_LR": args.get("cos_lr"),  # ✅ ADDED
+                "Cos_LR": args.get("cos_lr"),
             })
+        except:
+            pass
 
-        except Exception as e:
-            print(f"args.yaml error in {folder_name}: {e}")
-
-    # Read results.csv
     if os.path.exists(results_csv):
         try:
             df = pd.read_csv(results_csv)
@@ -98,9 +88,8 @@ def extract_results(folder):
                         "mAP@0.5": round(best_row.get(map50_col, 0), 4),
                         "mAP@0.5:0.95": round(best_row.get(map5095_col, 0), 4) if map5095_col else None,
                     })
-
-        except Exception as e:
-            print(f"results.csv error in {folder_name}: {e}")
+        except:
+            pass
 
     return result
 
@@ -109,22 +98,38 @@ def main():
 
     folders = sorted(glob.glob(FOLDER_PATTERN))
 
-    all_results = []
+    # Load existing CSV
+    if os.path.exists(OUTPUT_FILE):
+        existing_df = pd.read_csv(OUTPUT_FILE)
+        existing_trainings = set(existing_df["Training"].astype(str))
+    else:
+        existing_df = pd.DataFrame()
+        existing_trainings = set()
+
+    new_rows = []
 
     for folder in folders:
         if os.path.isdir(folder):
-            all_results.append(extract_results(folder))
+            folder_name = os.path.basename(folder)
 
-    df = pd.DataFrame(all_results)
+            if folder_name not in existing_trainings:
+                print(f"Add -> {folder_name}")
+                new_rows.append(extract_results(folder))
+            else:
+                print(f"Skip -> {folder_name}")
 
-    df = df.sort_values(by="mAP@0.5:0.95", ascending=True, na_position="last")
+    if new_rows:
+        new_df = pd.DataFrame(new_rows)
 
-    df.to_csv(OUTPUT_FILE, index=False)
+        if not existing_df.empty:
+            final_df = pd.concat([existing_df, new_df], ignore_index=True)
+        else:
+            final_df = new_df
 
-    print("Results saved to:", OUTPUT_FILE)
-    print(f"Total folders processed: {len(folders)}")
-    print(f"Total rows in table: {len(df)}")
-    print(df)
+        final_df.to_csv(OUTPUT_FILE, index=False)
+        print("New trainings added.")
+    else:
+        print("No new trainings found.")
 
 
 if __name__ == "__main__":
