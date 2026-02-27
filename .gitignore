@@ -4,10 +4,9 @@ dataset*
 runs
 *venv*
 *.jpg
-*.pt
 hardver_check.py
 camera_feed.py
 *.xml
 .idea*
-best*
-
+best_ncnn_model
+yolo*
