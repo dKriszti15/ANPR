@@ -8,6 +8,16 @@ exported model (ncnn)  -  30 sec
 
 avg: 577.83
 
+exported obb model (ncnn) - 30 sec
+
+1 -- 573.30
+2 -- 576.36
+3 -- 577.45
+4 -- 601.32
+5 -- 580.61
+
+avg: 581.80
+
 regular model  -  30 sec
 
 1 -- 178.43
