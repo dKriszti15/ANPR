@@ -20,3 +20,4 @@ train_results_v12_yolov11n-obb_lr001_coslrFalse_batch16_yolov8obbformat,yolo11n-
 train_results_v12_yolov11n-obb_lr001_coslrTrue_batch16_yolov8obbformat,yolo11n-obb.pt,6984.0,585.0,7569.0,125,16,0.001,True,53,0.915,0.9005,0.9226,0.8245
 train_results_v12_yolov11n-obb_lr005_coslrFalse_batch16_yolov8obbformat,yolo11n-obb.pt,6984.0,585.0,7569.0,125,16,0.005,False,53,0.947,0.8788,0.9273,0.823
 train_results_v13_yolov11n_relabeled_obb_lr001_coslrTrue_batch16,yolo11n.pt,7224.0,605.0,7829.0,200,16,0.001,True,84,0.9571,0.8471,0.934,0.8329
+train_results_v13_yolov11n_relabeled_obb_lr001_coslrTrue_batch16_taskobb_addedtodata,yolo11n.pt,7224.0,605.0,7829.0,200,16,0.001,True,84,0.9571,0.8471,0.934,0.8329
