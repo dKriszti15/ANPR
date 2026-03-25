@@ -5,7 +5,7 @@ import numpy as np
 from ultralytics import YOLO
 
 model_name = './best_obb.pt'
-image_path = './qasq.jpeg'
+image_path = './grr.jpeg'
 PADDING = 2
 CONFIDENCE_THRESHOLD = 0.8
 
@@ -26,6 +26,35 @@ if frame is None:
 output_dir = "cropped_boxes"
 os.makedirs(output_dir, exist_ok=True)
 
+
+def crop_rotated(frame, points, padding=0):
+    pts = points.astype(np.float32)
+
+    pts = pts[[3,2,1,0]]
+
+    w = int(np.linalg.norm(pts[1] - pts[0]) + padding * 2)
+    h = int(np.linalg.norm(pts[3] - pts[0]) + padding * 2)
+
+    if h > w:
+        w, h = h, w
+        dst_pts = np.array([
+            [padding, padding + h],
+            [padding, padding],
+            [padding + w, padding],
+            [padding + w, padding + h],
+        ], dtype=np.float32)
+    else:
+        dst_pts = np.array([
+            [padding, padding],
+            [padding + w, padding],
+            [padding + w, padding + h],
+            [padding, padding + h],
+        ], dtype=np.float32)
+
+    M = cv2.getPerspectiveTransform(pts, dst_pts)
+    cropped = cv2.warpPerspective(frame, M, (w + padding * 2, h + padding * 2))
+    return cropped
+
 results = ncnn_model(frame)
 
 for i, result in enumerate(results):
@@ -37,9 +66,10 @@ for i, result in enumerate(results):
         class_id = int(obb.cls[0])
         label_name = class_names[class_id]
 
-        points = obb.xyxyxyxy[0].cpu().numpy().astype(np.int32)  # [4, 2]
+        points = obb.xyxyxyxy[0].cpu().numpy().astype(np.int32)
+        print(f"Box {j} points: {points}")
 
-        # Draw the (rotated) bounding box
+        # Draw the rotated bounding box
         cv2.polylines(frame, [points.reshape((-1, 1, 2))], isClosed=True, color=(0, 255, 0), thickness=1)
 
         label = f"{label_name}: {confidence:.2f}"
@@ -50,12 +80,7 @@ for i, result in enumerate(results):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         if confidence > CONFIDENCE_THRESHOLD:
-            x1 = max(0, points[:, 0].min() + PADDING)
-            y1 = max(0, points[:, 1].min() + PADDING)
-            x2 = min(frame.shape[1], points[:, 0].max() - PADDING)
-            y2 = min(frame.shape[0], points[:, 1].max() - PADDING)
-
-            cropped_img = frame[y1:y2, x1:x2]
+            cropped_img = crop_rotated(frame, points.astype(np.float32), padding=PADDING)
             if cropped_img.size > 0:
                 filename = f"{output_dir}/{label_name}_{i}_{j}_conf_{confidence:.2f}.jpg"
                 cv2.imwrite(filename, cropped_img)
