@@ -7,10 +7,11 @@ from PIL import Image
 import torch
 import re
 
-CSV_PATH       = "ocr_test_data_2.csv"
+DATA_INDEX = "_2"
+CSV_PATH       = f"ocr_test_data{DATA_INDEX}.csv"
 MODEL_NAME     = "microsoft/trocr-base-printed"
-DIR_NONOBB     = "cropped_boxes_nonobb_2"
-DIR_OBB        = "cropped_boxes_obb_2"
+DIR_NONOBB     = f"cropped_boxes_nonobb{DATA_INDEX}"
+DIR_OBB        = f"cropped_boxes_obb{DATA_INDEX}"
 COUNTY_CODES = [
     "AB", "AR", "AG", "BC", "BH", "BN", "BT", "BV", "BR", "B",
     "CL", "CS", "CJ", "CT", "CV", "DB", "DJ", "GL", "GR", "GJ",
@@ -20,8 +21,8 @@ COUNTY_CODES = [
 
 COUNTY_CODES = sorted(COUNTY_CODES, key=len, reverse=True)
 
-def apply_length_filter(text: str) -> str:
-    return text[:7]
+def apply_length_filter(text: str, is_red: bool = False) -> str:
+    return text[:8] if is_red else text[:7]
 
 def apply_plate_structure(text: str) -> str:
     if len(text) < 3:
@@ -52,11 +53,11 @@ processor = TrOCRProcessor.from_pretrained(MODEL_NAME)
 model     = VisionEncoderDecoderModel.from_pretrained(MODEL_NAME)
 model.eval()
 
-def clean_pred(text: str) -> str:
+def clean_pred(text: str, is_red: bool = False) -> str:
     raw      = re.sub(r'[^A-Z0-9]', '', text.strip().upper())
     filtered = apply_county_filter(raw)
     fixed    = apply_plate_structure(filtered)
-    trimmed  = apply_length_filter(fixed)
+    trimmed  = apply_length_filter(fixed, is_red=is_red)
     if raw != trimmed:
         print(f"    [FILTER] {raw} -> {trimmed}")
     return trimmed
@@ -80,7 +81,8 @@ def evaluate_folder(folder, df, cer_metric):
             print(f"  Skipping {row['image_filename']} — could not read")
             continue
 
-        pred_text = clean_pred(run_trocr(image))
+        is_red = str(row.get("is_red", "False")).strip().lower() == "true"
+        pred_text = clean_pred(run_trocr(image), is_red=is_red)
         gt_text   = str(row["ground_truth"]).strip().upper().replace(" ", "")
 
         predictions.append(pred_text)

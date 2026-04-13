@@ -18,8 +18,8 @@ COUNTY_CODES = [
 ]
 COUNTY_CODES = sorted(COUNTY_CODES, key=len, reverse=True)
 
-def apply_length_filter(text: str) -> str:
-    return text[:7]
+def apply_length_filter(text: str, is_red: bool = False) -> str:
+    return text[:8] if is_red else text[:7]
 
 def apply_plate_structure(text: str) -> str:
     if len(text) < 3:
@@ -39,11 +39,11 @@ def apply_county_filter(text: str) -> str:
                     return chunk
     return text
 
-def clean_pred(text: str) -> str:
+def clean_pred(text: str, is_red: bool = False) -> str:
     raw      = re.sub(r'[^A-Z0-9]', '', text.strip().upper())
     filtered = apply_county_filter(raw)
     fixed    = apply_plate_structure(filtered)
-    trimmed  = apply_length_filter(fixed)
+    trimmed  = apply_length_filter(fixed, is_red=is_red)
     if raw != trimmed:
         print(f"    [FILTER] {raw} -> {trimmed}")
     return trimmed
@@ -72,7 +72,8 @@ def evaluate():
             print(f"Skipping {row['image_filename']} — could not read")
             continue
 
-        pred_text = clean_pred(run_tesseract(image))
+        is_red = str(row.get("is_red", "False")).strip().lower() == "true"
+        pred_text = clean_pred(run_tesseract(image), is_red=is_red)
         gt_text = str(row["ground_truth"]).strip().upper().replace(" ", "")
 
         predictions.append(pred_text)
