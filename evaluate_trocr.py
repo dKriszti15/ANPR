@@ -7,53 +7,58 @@ from PIL import Image
 import torch
 import re
 
-DATA_INDEX = "_2"
-CSV_PATH       = f"ocr_test_data{DATA_INDEX}.csv"
-MODEL_NAME     = "microsoft/trocr-base-printed"
-DIR_NONOBB     = f"cropped_boxes_nonobb{DATA_INDEX}"
-DIR_OBB        = f"cropped_boxes_obb{DATA_INDEX}"
+EVAL_CONFIGS = {
+    "REGULAR_MODEL": {
+        "csv_path": "nonobb_tilted.csv",
+        "folder": "gt_crops_TILTED_nonobb",
+    },
+    "OBB_MODEL": {
+        "csv_path": "obb_tilted.csv",
+        "folder": "cropped_gt_TILTED_obb",
+    },
+}
+
+MODEL_NAME = "microsoft/trocr-base-printed"
+
 COUNTY_CODES = [
-    "AB", "AR", "AG", "BC", "BH", "BN", "BT", "BV", "BR", "B",
-    "CL", "CS", "CJ", "CT", "CV", "DB", "DJ", "GL", "GR", "GJ",
-    "HR", "HD", "IL", "IS", "IF", "MM", "MH", "MS", "NT", "OT",
-    "PH", "SJ", "SM", "SB", "SV", "TR", "TM", "TL", "VS", "VL", "VN"
+    "AB","AR","AG","BC","BH","BN","BT","BV","BR","B",
+    "CL","CS","CJ","CT","CV","DB","DJ","GL","GR","GJ",
+    "HR","HD","IL","IS","IF","MM","MH","MS","NT","OT",
+    "PH","SJ","SM","SB","SV","TR","TM","TL","VS","VL","VN"
 ]
 
 COUNTY_CODES = sorted(COUNTY_CODES, key=len, reverse=True)
 
-def apply_length_filter(text: str, is_red: bool = False) -> str:
+def normalize(name):
+    return name.split(".jpg")[0] + ".jpg"
+
+def apply_length_filter(text, is_red=False):
     return text[:8] if is_red else text[:7]
 
-def apply_plate_structure(text: str) -> str:
+def apply_plate_structure(text):
     if len(text) < 3:
         return text
-
     body = text[:-3]
     tail = text[-3:]
-
     tail = tail.replace('0', 'O')
-
     return body + tail
 
-def apply_county_filter(text: str) -> str:
-    # cut first char until a valid county code is found, followed by a number
+def apply_county_filter(text):
     for i in range(len(text)):
         chunk = text[i:]
         for code in COUNTY_CODES:
             if chunk.startswith(code):
                 remainder = chunk[len(code):]
-                # make sure what follows the county code starts with a digit
                 if remainder and remainder[0].isdigit():
                     return chunk
-
-    return text  # no valid match found, return as-is
+    return text
 
 print("Loading TrOCR model...")
 processor = TrOCRProcessor.from_pretrained(MODEL_NAME)
 model     = VisionEncoderDecoderModel.from_pretrained(MODEL_NAME)
 model.eval()
 
-def clean_pred(text: str, is_red: bool = False) -> str:
+def clean_pred(text, is_red=False):
     raw      = re.sub(r'[^A-Z0-9]', '', text.strip().upper())
     filtered = apply_county_filter(raw)
     fixed    = apply_plate_structure(filtered)
@@ -62,91 +67,100 @@ def clean_pred(text: str, is_red: bool = False) -> str:
         print(f"    [FILTER] {raw} -> {trimmed}")
     return trimmed
 
-def run_trocr(image_cv2) -> str:
-    image_rgb    = cv2.cvtColor(image_cv2, cv2.COLOR_BGR2RGB)
+def run_trocr(image):
+    image_rgb    = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     pixel_values = processor(Image.fromarray(image_rgb), return_tensors="pt").pixel_values
     with torch.no_grad():
         generated_ids = model.generate(pixel_values)
     return processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-def evaluate_folder(folder, df, cer_metric):
+def evaluate_folder(name, folder, df, cer_metric):
     predictions   = []
     ground_truths = []
-    total_plates  = 0
-    exact_matches = 0
+    total         = 0
+    exact         = 0
+
+    print(f"\n{'='*55}")
+    print(f"  Evaluating: {name} ({folder})")
+    print(f"{'='*55}")
 
     for _, row in df.iterrows():
-        image = cv2.imread(os.path.join(folder, row["image_filename"]))
+        image_path = os.path.join(folder, row["image_filename"])
+        image = cv2.imread(image_path)
+
         if image is None:
-            print(f"  Skipping {row['image_filename']} — could not read")
+            print(f"  Skipping {row['image_filename']}")
             continue
 
-        is_red = str(row.get("is_red", "False")).strip().lower() == "true"
-        pred_text = clean_pred(run_trocr(image), is_red=is_red)
-        gt_text   = str(row["ground_truth"]).strip().upper().replace(" ", "")
+        is_red = str(row.get("is_red", "False")).lower() == "true"
 
-        predictions.append(pred_text)
-        ground_truths.append(gt_text)
+        pred = clean_pred(run_trocr(image), is_red=is_red)
+        gt   = str(row["ground_truth"]).strip().upper().replace(" ", "")
 
-        total_plates += 1
-        if pred_text == gt_text:
-            exact_matches += 1
+        predictions.append(pred)
+        ground_truths.append(gt)
 
-        print(f"  [{total_plates:03d}] GT: {gt_text:12} | Pred: {pred_text:12} | {'✅' if pred_text == gt_text else '❌'}")
+        total += 1
+        if pred == gt:
+            exact += 1
 
-    cer_score        = cer_metric(predictions, ground_truths)
-    recognition_rate = exact_matches / total_plates if total_plates > 0 else 0
+        print(f"  [{total:03d}] GT: {gt:12} | Pred: {pred:12} | {'✅' if pred == gt else '❌'}")
+
+    cer = cer_metric(predictions, ground_truths).item()
+    rate = exact / total if total else 0
 
     correct_chars = 0
     total_chars   = 0
-    for pred, gt in zip(predictions, ground_truths):
-        total_chars   += len(gt)
-        correct_chars += sum(p == g for p, g in zip(pred, gt))
-    recall_ratio = correct_chars / total_chars if total_chars > 0 else 0
+    for p, g in zip(predictions, ground_truths):
+        total_chars   += len(g)
+        correct_chars += sum(pc == gc for pc, gc in zip(p, g))
+
+    recall = correct_chars / total_chars if total_chars else 0
 
     return {
-        "predictions":   predictions,
-        "ground_truths": ground_truths,
-        "total":         total_plates,
-        "exact":         exact_matches,
-        "rate":          recognition_rate,
-        "cer":           cer_score.item(),
-        "recall":        recall_ratio,
+        "total": total,
+        "exact": exact,
+        "rate": rate,
+        "cer": cer,
+        "recall": recall,
     }
 
-def print_metrics(name, m):
-    print(f"\n  {'Total plates':<25} {m['total']}")
-    print(f"  {'Exact matches':<25} {m['exact']}")
-    print(f"  {'Recognition Rate':<25} {m['rate']:.2%}")
-    print(f"  {'Character Error Rate':<25} {m['cer']:.4f}")
-    print(f"  {'Recall Ratio':<25} {m['recall']:.2%}")
+def print_summary(results):
+    print(f"\n{'='*55}")
+    print(f"{'Metric':<25}", end="")
+    for name in results:
+        print(f"{name:>12}", end="")
+    print()
+    print(f"{'-'*55}")
 
-df         = pd.read_csv(CSV_PATH)
+    def best(metric, lower=False):
+        vals = [results[k][metric] for k in results]
+        return min(vals) if lower else max(vals)
+
+    for label, key, lower in [
+        ("Recognition Rate", "rate", False),
+        ("Char Error Rate", "cer", True),
+        ("Recall Ratio", "recall", False),
+    ]:
+        print(f"{label:<25}", end="")
+        best_val = best(key, lower)
+        for name in results:
+            val = results[name][key]
+            mark = " ✅" if val == best_val else ""
+            fmt = f"{val:.4f}" if key == "cer" else f"{val:.2%}"
+            print(f"{fmt + mark:>12}", end="")
+        print()
+
+    print(f"{'='*55}")
+
 cer_metric = CharErrorRate()
 
-print(f"\n{'='*55}")
-print(f"  Evaluating: NON-OBB ({DIR_NONOBB})")
-print(f"{'='*55}")
-nonobb = evaluate_folder(DIR_NONOBB, df, cer_metric)
-print_metrics("NON-OBB", nonobb)
+results = {}
 
-print(f"\n{'='*55}")
-print(f"  Evaluating: OBB ({DIR_OBB})")
-print(f"{'='*55}")
-obb = evaluate_folder(DIR_OBB, df, cer_metric)
-print_metrics("OBB", obb)
+for name, config in EVAL_CONFIGS.items():
+    csv_path = config["csv_path"]
+    folder = config["folder"]
+    df = pd.read_csv(csv_path)
+    results[name] = evaluate_folder(name, folder, df, cer_metric)
 
-# summary
-print(f"\n{'='*55}")
-print(f"  {'Metric':<25} {'NON-OBB':>12} {'OBB':>12}")
-print(f"  {'-'*53}")
-metrics = [
-    ("Recognition Rate", f"{nonobb['rate']:.2%}",  f"{obb['rate']:.2%}",  obb['rate']  > nonobb['rate'],  False),
-    ("Char Error Rate",  f"{nonobb['cer']:.4f}",   f"{obb['cer']:.4f}",   obb['cer']   < nonobb['cer'],   True),
-    ("Recall Ratio",     f"{nonobb['recall']:.2%}", f"{obb['recall']:.2%}", obb['recall'] > nonobb['recall'], False),
-]
-for label, r_val, o_val, obb_wins, lower_is_better in metrics:
-    r_str = r_val + (" ✅" if not obb_wins else "")
-    o_str = o_val + (" ✅" if obb_wins else "")
-    print(f"  {label:<25} {r_str:>14} {o_str:>14}")
-print(f"{'='*55}")
+print_summary(results)

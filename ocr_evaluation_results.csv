@@ -12,7 +12,19 @@ ocr_test_data_3.csv,37,TrOCR,obb,64.86,0.0811,87.64
 ocr_test_data_3.csv,37,Tesseract,non-obb,5.41,0.6718,20.46
 ocr_test_data_3.csv,37,Tesseract,obb,32.43,0.3977,48.26
 ------,-----,-----,-----,-------,-------,------
-TrOCR, , ,non-obb,77.09,0.0711,90.09
-TrOCR, , ,obb,77.99,0.0565,91.44
-Tesserract, , ,non-obb,8.24,0.6239,25.19
-Tesserract, , ,obb,26.91,0.3854,47.39
+ , ,TrOCR,non-obb,77.09,0.0711,90.09
+ , ,TrOCR,obb,77.99,0.0565,91.44
+ , ,Tesserract,non-obb,8.24,0.6239,25.19
+ , ,Tesserract,obb,26.91,0.3854,47.39
+ , , , , , ,
+-------------,--------- ,  ,GT based crop results,"",------ ,---------
+ ,94,TrOCR,non-obb,63.00,0.1834,79.51
+ ,94,TrOCR,obb,79.00,0.0695,91.17
+ ,94,Tesserract,non-obb,15.00,0.6418,26.93
+ ,94,Tesserract,obb,42.00,0.3256,56.01
+ , , , , , ,
+-------------,---------, ,TILTED plates results, ,------,---------
+ ,50,TrOCR,non-obb,33.33,0.4607,46.35
+ ,50,TrOCR,obb,84.31,0.0308,96.92
+ ,50,Tesserract,non-obb,0.00,0.9101,3.93
+  ,50,Tesserract,obb,52.94,0.2857,64.15
