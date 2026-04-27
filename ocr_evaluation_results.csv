@@ -24,6 +24,8 @@ ocr_test_data_3.csv,37,Tesseract,obb,32.43,0.3977,48.26
  ,94,TrOCR-small,obb,75.00,0.1302,84.95
  ,94,Tesserract,non-obb,15.00,0.6418,26.93
  ,94,Tesserract,obb,42.00,0.3256,56.01
+ ,94,EasyOCR,non-obb,15.00,0.4628,40.26
+ ,94,EasyOCR,obb,30,0.3271,56.01
  , , , , , ,
 -------------,---------, ,TILTED plates results, ,------,---------
  ,50,TrOCR-base,non-obb,33.33,0.4607,46.35
@@ -32,3 +34,5 @@ ocr_test_data_3.csv,37,Tesseract,obb,32.43,0.3977,48.26
   ,50,TrOCR-small,obb,80.39,0.0504,92.72
  ,50,Tesserract,non-obb,0.00,0.9101,3.93
  ,50,Tesserract,obb,52.94,0.2857,64.15
+ ,50,EasyOCR,non-obb,19.61,0.5506,31.46
+ ,50,EasyOCR,obb,43.14,0.3221,57.14
