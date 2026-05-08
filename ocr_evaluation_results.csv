@@ -1,0 +1,38 @@
+dataset,plates,ocr_engine,model_type,recognition_rate (%),cer,recall_ratio (%)
+ocr_test_data.csv,53,TrOCR,non-obb,81.13,0.0615,92.51
+ocr_test_data.csv,53,TrOCR,obb,81.13,0.0455,94.12
+ocr_test_data.csv,53,Tesseract,non-obb,11.32,0.5856,29.41
+ocr_test_data.csv,53,Tesseract,obb,28.30,0.3529,51.07
+ocr_test_data_2.csv,50,TrOCR,non-obb,88.00,0.0400,95.14
+ocr_test_data_2.csv,50,TrOCR,obb,88.00,0.0429,92.57
+ocr_test_data_2.csv,50,Tesseract,non-obb,8.00,0.6143,25.71
+ocr_test_data_2.csv,50,Tesseract,obb,20.00,0.4057,42.86
+ocr_test_data_3.csv,37,TrOCR,non-obb,62.16,0.1120,82.63
+ocr_test_data_3.csv,37,TrOCR,obb,64.86,0.0811,87.64
+ocr_test_data_3.csv,37,Tesseract,non-obb,5.41,0.6718,20.46
+ocr_test_data_3.csv,37,Tesseract,obb,32.43,0.3977,48.26
+------,-----,-----,-----,-------,-------,------
+ , ,TrOCR,non-obb,77.09,0.0711,90.09
+ , ,TrOCR,obb,77.99,0.0565,91.44
+ , ,Tesserract,non-obb,8.24,0.6239,25.19
+ , ,Tesserract,obb,26.91,0.3854,47.39
+ , , , , , ,
+-------------,--------- ,  ,GT based crop results,"",------ ,---------
+ ,94,TrOCR,non-obb,63.00,0.1834,79.51
+ ,94,TrOCR,obb,79.00,0.0695,91.17
+ ,94,TrOCR-small,non-obb,39.00,0.3983,54.01
+ ,94,TrOCR-small,obb,75.00,0.1302,84.95
+ ,94,Tesserract,non-obb,15.00,0.6418,26.93
+ ,94,Tesserract,obb,42.00,0.3256,56.01
+ ,94,EasyOCR,non-obb,15.00,0.4628,40.26
+ ,94,EasyOCR,obb,30,0.3271,56.01
+ , , , , , ,
+-------------,---------, ,TILTED plates results, ,------,---------
+ ,50,TrOCR-base,non-obb,33.33,0.4607,46.35
+ ,50,TrOCR-base,obb,84.31,0.0308,96.92
+ ,50,TrOCR-small,non-obb,3.92,0.8539,12.08
+  ,50,TrOCR-small,obb,80.39,0.0504,92.72
+ ,50,Tesserract,non-obb,0.00,0.9101,3.93
+ ,50,Tesserract,obb,52.94,0.2857,64.15
+ ,50,EasyOCR,non-obb,19.61,0.5506,31.46
+ ,50,EasyOCR,obb,43.14,0.3221,57.14
