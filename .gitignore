@@ -15,3 +15,6 @@ yolo*
 model*ncnn*
 *yaml
 *jp*g
+*.txt
+*.yaml
+model*
