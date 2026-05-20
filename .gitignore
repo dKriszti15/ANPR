@@ -10,6 +10,11 @@ camera_feed.py
 .idea*
 best_ncnn_model
 yolo*
+*.torchscript
+*.txt
+model*ncnn*
+*yaml
+*jp*g
 *.txt
 *.yaml
 model*
