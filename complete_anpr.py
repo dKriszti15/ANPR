@@ -170,7 +170,7 @@ def run_trocr(processor, model, image):
 def append_plate_log(log_path, plate_text, raw_text, det_conf):
     timestamp = datetime.now().isoformat(timespec="seconds")
     with open(log_path, "a", encoding="utf-8") as handle:
-        handle.write(f"{timestamp} | plate={plate_text} | raw={raw_text} | det_conf={det_conf:.2f}\n")
+        handle.write(f"{timestamp} | raw={raw_text} -> {plate_text} | det_conf={det_conf:.2f}\n")
 
 
 def main():
