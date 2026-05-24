@@ -4,72 +4,100 @@ import os
 import numpy as np
 from collections import defaultdict
 
-IMAGES_DIR  = "./dataset/train/images"
-LABELS_DIR  = "./dataset/train/labels"
-OUTPUT_DIR  = "cropped_gt_obb"
-NUM_IMAGES  = 100
-PADDING     = 2
+IMAGES_DIR = "./tilted_50_obb/train/images"
+LABELS_DIR = "./tilted_50_obb/train/labels"
+OUTPUT_DIR = "cropped_gt_TILTED_obb"
+NUM_IMAGES = 100
+PADDING = 2
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 
 def crop_rotated(frame, points, padding=0):
     pts = points.astype(np.float32)
 
-    center = pts.mean(axis=0)
+    # Deterministic corner order: top-left, top-right, bottom-right, bottom-left.
+    ordered = np.zeros((4, 2), dtype=np.float32)
+    s = pts.sum(axis=1)
+    d = np.diff(pts, axis=1).reshape(-1)
 
-    def angle_from_center(pt):
-        return np.arctan2(pt[1] - center[1], pt[0] - center[0])
+    ordered[0] = pts[np.argmin(s)]
+    ordered[2] = pts[np.argmax(s)]
+    ordered[1] = pts[np.argmin(d)]
+    ordered[3] = pts[np.argmax(d)]
 
-    sorted_pts = sorted(pts, key=angle_from_center)
-    pts = np.array(sorted_pts, dtype=np.float32)
+    width_a = np.linalg.norm(ordered[2] - ordered[3])
+    width_b = np.linalg.norm(ordered[1] - ordered[0])
+    height_a = np.linalg.norm(ordered[1] - ordered[2])
+    height_b = np.linalg.norm(ordered[0] - ordered[3])
 
-    corner_sums = pts.sum(axis=1)
-    tl_idx = np.argmin(corner_sums)
-    pts = np.roll(pts, -tl_idx, axis=0)
+    w = max(1, int(round(max(width_a, width_b))))
+    h = max(1, int(round(max(height_a, height_b))))
 
-    w = int(np.linalg.norm(pts[1] - pts[0]) + padding * 2)
-    h = int(np.linalg.norm(pts[3] - pts[0]) + padding * 2)
+    dst_pts = np.array([
+        [padding, padding],
+        [padding + w, padding],
+        [padding + w, padding + h],
+        [padding, padding + h],
+    ], dtype=np.float32)
 
-    if h > w:
-        w, h = h, w
-        dst_pts = np.array([
-            [padding,     padding + h],
-            [padding,     padding    ],
-            [padding + w, padding    ],
-            [padding + w, padding + h],
-        ], dtype=np.float32)
-    else:
-        dst_pts = np.array([
-            [padding,     padding    ],
-            [padding + w, padding    ],
-            [padding + w, padding + h],
-            [padding,     padding + h],
-        ], dtype=np.float32)
-
-    M = cv2.getPerspectiveTransform(pts, dst_pts)
+    M = cv2.getPerspectiveTransform(ordered, dst_pts)
     cropped = cv2.warpPerspective(frame, M, (w + padding * 2, h + padding * 2))
+
     return cropped
 
-# gruop by prefix
-grouped = defaultdict(list)
 
-for label_filename in os.listdir(LABELS_DIR):
-    if not label_filename.endswith(".txt"):
+def normalize_plate_orientation(cropped):
+    if cropped is None or cropped.size == 0:
+        return cropped
+
+    # Keep output horizontal.
+    if cropped.shape[0] > cropped.shape[1]:
+        cropped = cv2.rotate(cropped, cv2.ROTATE_90_CLOCKWISE)
+
+    # EU-style Romanian plates should have the blue strip on the left.
+    h, w = cropped.shape[:2]
+    strip_w = max(2, int(w * 0.18))
+    left = cropped[:, :strip_w]
+    right = cropped[:, w - strip_w:]
+
+    left_blue = np.mean(left[:, :, 0].astype(np.float32) - np.maximum(left[:, :, 1], left[:, :, 2]).astype(np.float32))
+    right_blue = np.mean(right[:, :, 0].astype(np.float32) - np.maximum(right[:, :, 1], right[:, :, 2]).astype(np.float32))
+
+    if right_blue > left_blue + 5.0:
+        cropped = cv2.rotate(cropped, cv2.ROTATE_180)
+
+    return cropped
+
+valid_pairs = []
+
+for label_file in os.listdir(LABELS_DIR):
+    if not label_file.endswith(".txt"):
         continue
 
-    base_name = os.path.splitext(label_filename)[0]
+    image_file = label_file.replace(".txt", ".jpg")
+    image_path = os.path.join(IMAGES_DIR, image_file)
+
+    if os.path.exists(image_path):
+        valid_pairs.append((label_file, image_path))
+
+if not valid_pairs:
+    raise RuntimeError("No valid image-label pairs found.")
 
 
-    prefix = base_name.split("_")[0]
+grouped = defaultdict(list)
 
-    for ext in ['.jpg']:
-        candidate = os.path.join(IMAGES_DIR, base_name + ext)
-        if os.path.exists(candidate):
-            grouped[prefix].append((label_filename, candidate))
-            break
+for lf, ip in valid_pairs:
+    prefix = os.path.basename(ip).split("_")[0]
+    grouped[prefix].append((lf, ip))
 
-# Pick 1
-valid_pairs = [random.choice(v) for v in grouped.values()]
+selected_prefixes = list(grouped.keys())
+
+valid_pairs = [
+    random.choice(v)
+    for k, v in grouped.items()
+    if k in selected_prefixes and len(v) > 0
+]
 
 selected = random.sample(valid_pairs, min(NUM_IMAGES, len(valid_pairs)))
 
@@ -90,16 +118,22 @@ for label_filename, image_path in selected:
 
     h_img, w_img = frame.shape[:2]
 
-    with open(os.path.join(LABELS_DIR, label_filename), "r") as f:
+    label_path = os.path.join(LABELS_DIR, label_filename)
+    if not os.path.exists(label_path):
+        print(f"Missing label: {label_path}")
+        continue
+
+    with open(label_path, "r") as f:
         lines = f.readlines()
 
     for line in lines:
         parts = line.strip().split()
+
         if len(parts) != 9:
             continue
 
         class_id = int(parts[0])
-        coords = [float(p) for p in parts[1:]]
+        coords = list(map(float, parts[1:]))
 
         points = np.array([
             [coords[0] * w_img, coords[1] * h_img],
@@ -110,10 +144,15 @@ for label_filename, image_path in selected:
 
         cropped = crop_rotated(frame, points, padding=PADDING)
 
-        if cropped.size > 0:
-            filename = f"{OUTPUT_DIR}/{counter:04d}.jpg"
-            cv2.imwrite(filename, cropped)
-            print(f"Saved: {filename} (class {class_id})")
-            counter += 1
+        if cropped is None or cropped.size == 0:
+            continue
+
+        cropped = normalize_plate_orientation(cropped)
+
+        filename = os.path.join(OUTPUT_DIR, f"{counter:04d}.jpg")
+        cv2.imwrite(filename, cropped)
+
+        print(f"Saved: {filename} (class {class_id})")
+        counter += 1
 
 print(f"\nDone. Total crops saved: {counter}")
