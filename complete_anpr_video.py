@@ -23,7 +23,7 @@ INFERENCE_SCALE = 0.8
 PADDING = 2
 
 TRACK_EXPIRE_SECONDS = 3
-LOG_COOLDOWN_SECONDS = 25
+LOG_COOLDOWN_SECONDS = 30
 CONFIRMATION_COUNT = 2
 FRAME_SKIP = 1
 
@@ -79,9 +79,12 @@ def apply_plate_structure(text):
 
         county = (
             county
-            .replace("8", "B")
             .replace("0", "O")
             .replace("1", "I")
+            .replace("5", "S")
+            .replace("6", "G")
+            .replace("7", "T")
+            .replace("8", "B")
         )
 
     body = (
@@ -99,6 +102,7 @@ def apply_plate_structure(text):
         .replace("1", "I")
         .replace("2", "Z")
         .replace("5", "S")
+        .replace("6", "G")
         .replace("8", "B")
     )
 

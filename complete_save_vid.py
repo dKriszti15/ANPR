@@ -15,7 +15,7 @@ MODEL_NAME = "./best_obb.pt"
 NCNN_MODEL_DIR = "best_obb_ncnn_model"
 DATA_YAML = "./dataset/data.yaml"
 VIDEO_PATH = "./IMG_6866.mov"
-OUTPUT_VIDEO_PATH = "./output2.mp4"
+OUTPUT_VIDEO_PATH = "./output23.mp4"
 
 LOG_FILE = "plate_reads.txt"
 
@@ -59,26 +59,32 @@ def apply_county_filter(text):
                     return candidate
     return text
 
-
 def apply_plate_structure(text):
     if len(text) < 4:
         return text
 
     text = text.upper()
+
     tail = text[-3:]
 
     # Bucuresti
     if text.startswith("B"):
+
         county = "B"
         body = text[1:-3]
+
     else:
         county = text[:2]
         body = text[2:-3]
+
         county = (
             county
-            .replace("8", "B")
             .replace("0", "O")
             .replace("1", "I")
+            .replace("5", "S")
+            .replace("6", "G")
+            .replace("7", "T")
+            .replace("8", "B")
         )
 
     body = (
@@ -96,13 +102,17 @@ def apply_plate_structure(text):
         .replace("1", "I")
         .replace("2", "Z")
         .replace("5", "S")
+        .replace("6", "G")
         .replace("8", "B")
     )
 
     fixed = county + body + tail
-    print(f"county={county} | body={body} | tail={tail} | final={fixed}")
-    return fixed
 
+    print(
+        f"county={county} | body={body} | tail={tail} | final={fixed}"
+    )
+
+    return fixed
 
 def clean_pred(text, is_red=False):
     raw = re.sub(r"[^A-Z0-9]", "", text.upper().strip())
