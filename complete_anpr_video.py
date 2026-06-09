@@ -189,17 +189,12 @@ def order_points(points):
     ordered[2] = pts[np.argmax(sums)]
     ordered[1] = pts[np.argmin(diffs)]
     ordered[3] = pts[np.argmax(diffs)]
-    return ordered
-
-def crop_simple(frame, points, padding=0):
-    x1 = max(0, int(points[:, 0].min()) - padding)
-    y1 = max(0, int(points[:, 1].min()) - padding)
-    x2 = min(frame.shape[1], int(points[:, 0].max()) + padding)
-    y2 = min(frame.shape[0], int(points[:, 1].max()) + padding)
-    return frame[y1:y2, x1:x2]
+    return ordered  # [top-left, top-right, bottom-right, bottom-left]
 
 def crop_rotated(frame, points, padding=0):
     pts = points.astype(np.float32)
+
+    # swap points' order to avoid upside-down result
 
     pts = pts[[3,2,1,0]]
 
@@ -230,10 +225,10 @@ def crop_rotated(frame, points, padding=0):
 def normalize_plate_orientation(cropped):
     if cropped is None or cropped.size == 0:
         return cropped
-    if cropped.shape[0] > cropped.shape[1]:
+    if cropped.shape[0] > cropped.shape[1]: # force horizontal orientation
         cropped = cv2.rotate(cropped, cv2.ROTATE_90_CLOCKWISE)
     h, w = cropped.shape[:2]
-    strip_w = max(2, int(w * 0.18))
+    strip_w = max(2, int(w * 0.18)) # blue EU strip
     left = cropped[:, :strip_w]
     right = cropped[:, w - strip_w:]
     left_blue = np.mean(left[:, :, 0].astype(np.float32) - np.maximum(left[:, :, 1], left[:, :, 2]).astype(np.float32))
@@ -254,15 +249,20 @@ def run_trocr(processor, model, img):
 
 
 def boxes_iou(a, b):
+    # intersection corners
     x1 = max(a[0], b[0])
     y1 = max(a[1], b[1])
     x2 = min(a[2], b[2])
     y2 = min(a[3], b[3])
+
     inter = max(0, x2 - x1) * max(0, y2 - y1)
+
     area1 = (a[2] - a[0]) * (a[3] - a[1])
     area2 = (b[2] - b[0]) * (b[3] - b[1])
+
     union = area1 + area2 - inter
-    return inter / union if union else 0
+
+    return inter / union if union else 0    # 0.5 = 50% overlap
 
 def find_track(bbox):
     best = None
@@ -333,7 +333,7 @@ def main():
                 cv2.polylines(frame, [pts.astype(np.int32).reshape((-1, 1, 2))], True, (0, 255, 0), 1)
 
                 tid = find_track(bbox)
-                if tid is None:
+                if tid is None: # new plate
                     tid = str(time.time())
                     tracked[tid] = {
                         "bbox": bbox,
@@ -342,6 +342,8 @@ def main():
                         "last": now,
                     }
                 tr = tracked[tid]
+
+                # update pos and last seen time
                 tr["bbox"] = bbox
                 tr["last"] = now
 
@@ -351,7 +353,7 @@ def main():
                     raw = tr["raw"]
 
                 else:
-                    # only run OCR every FRAME_SKIP frames to avoid blocking
+                    # only run OCR every FRAME_SKIP frames
                     if frame_count % FRAME_SKIP != 0:
                         continue
 
@@ -391,10 +393,12 @@ def main():
                 plate_count[plate] = plate_count.get(plate, 0) + 1
                 cooldown = now - last_logged.get(plate, 0)
 
+                # if seen enough times + log cooldown expired => log
                 if plate_count[plate] >= CONFIRMATION_COUNT and cooldown >= LOG_COOLDOWN_SECONDS:
                     append_log(plate, raw, conf)
                     last_logged[plate] = now
 
+        # delete tracks not seeen in the last TRACK_EXPIRE_SECONDS
         for k in list(tracked.keys()):
             if now - tracked[k]["last"] > TRACK_EXPIRE_SECONDS:
                 del tracked[k]
